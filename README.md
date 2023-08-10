@@ -119,8 +119,6 @@ We consider a varying number of virtual positions, as depicted in Fig. 1, equall
     </figurecaption>
 </p>
 
-$\includegraphics[height=\textheight]{fig/virtual_positions.png} (Fig. 1. Example of virtual positions.)$
-
 For the QoS lower bound, we consider $\rho_l^{QoS} = 0.9$, and regarding the path loss parameters, the same values applied to NS3 simulation are used, $d_0 = 1$, $n = 3.76$ and $P_{r0} = 10$. 
 
 After generating the input data, we execute the optimization algorithm and start by comparing the solution of the updated model (i.e. the model with the path loss constraint) against the solution given by the previous model. As illustrated in Fig. 2, the updated model solved all the instances with 2 UAVs, while the previous model varied in a mean between 2.5 and 3.4. It happens because the previous model only allowed the devices to connect to a gateway with the best configuration available, while the updated model allow that the devices set a worst configuration allowing it to connect to more distant gateways and reducing the number of positioned UAVs.
