@@ -22,42 +22,29 @@ Let $\mathcal{K} = \{k_1, k_2, \dots, k_{|\mathcal{K}|}\}$ the set of LoRa-EDs c
 
 Finally, we define the objective function as,
 
-$$
-\text{minimize} \quad 
-\sum_{p \in \mathcal{P}} 
-\Bigg\lceil 
-\sum_{k\in\mathcal{K}}
-\sum_{c\in\mathcal{C}}
-\frac{ x^{p}_{k,c} } 
-{|\mathcal{K}|} 
-\Bigg\rceil
-$$
+```math
+\text{minimize} \quad \sum_{p \in \mathcal{P}} \Bigg\lceil \sum_{k\in\mathcal{K}} \sum_{c\in\mathcal{C}} \frac{ x^{p}_{k,c} } {|\mathcal{K}|} \Bigg\rceil
+```
 
 where $x^{p}_{k,c} \in \{0,1\}$ is the decision variable that indicates whether an UAV was positioned at point $p \in \mathcal{P}$ to serve the device $k \in \mathcal{K}$ using a configuration $c \in \mathcal{C}$.
 
 To ensure that for each device $k \in \mathcal{K}$ there's exactly one UAV positioned at point $p \in \mathcal{P}$ with an assigned configuration $c \in \mathcal{C}$, we define the following constraint:
 
-$$
-\sum_{p \in \mathcal{P}}
-\sum_{c\in\mathcal{C}}
-x^{p}_{k,c} = 1, \quad\forall k \in\mathcal{K}
-$$
+```math
+\sum_{p \in \mathcal{P}} \sum_{c\in\mathcal{C}}x^{p}_{k,c} = 1, \quad\forall k \in\mathcal{K}
+```
 
 To guarantee that the bandwidth $R^{max}_l$ assigned to each Slice $l \in \mathcal{L}$ per LoRa GW at position $p \in \mathcal{P}$ is not exceeded, the sum of uplink traffic $R_k$ for all devices $k \in \mathcal{K}$ connected to that LoRa GW must not surpass $R^{max}_l$.
 
-$$
-\sum_{k\in\mathcal{K}}
-\sum_{c\in\mathcal{C}}
-S(k,l) \cdot x^{p}_{k,c} \cdot R_k 
-\le R^{max}_{l}, 
-\quad \forall l \in\mathcal{L}, \forall p\in\mathcal{P}
-$$
+```math 
+\sum_{k\in\mathcal{K}} \sum_{c\in\mathcal{C}} S(k,l) \cdot x^{p}_{k,c} \cdot R_k \le R^{max}_{l}, \quad \forall l \in\mathcal{L}, \forall p\in\mathcal{P}
+```
 
 Where $S(k,l)$ is a mapping function over the input data, resulting in $1$ when the device $k \in \mathcal{K}$ is associated with the slice $l \in \mathcal{L}$, and $0$ otherwise.
 
 The lower bound QoS $\rho_l^{QoS}$ defined for each slice $l \in \mathcal{L}$ must be granted to every device $k \in \mathcal{K}$ associated with it.
 
-$$
+```math
 \sum_{p\in\mathcal{P}}
 \sum_{c\in\mathcal{C}}
 x^{p}_{k,c} \cdot
@@ -65,40 +52,25 @@ S(k,l)\cdot QoS_{c,l}
 \ge \rho^{QoS}_l
 \,,\quad \forall l\in\mathcal{L}
 ,\forall k\in\mathcal{K}
-$$
+```
 
 Lastly, given the signal attenuation of the wireless channel, every device $k \in \mathcal{K}$ must be assigned to a LoRa GW at point $p \in \mathcal{P}$ capable of receiving its signal above the minimum sensibility $S_{rx}(c)$ of the LoRa GW for the configuration $c\in\mathcal{C}$, enabling the communication. To achieve this, we define the following constraint:
 
-$$
+```math 
 \sum_{p\in\mathcal{P}}
 \sum_{k\in\mathcal{K}}
 \sum_{c\in\mathcal{C}}
 x^{p}_{k,c}
 \Big(P_{tx}(c) - PL(p,k)\Big) \ge S_{rx}(c)
-$$
+```
 
 Where $P_{tx}(c)$ is the transmission power of a LoRa ED using configuration $c\in\mathcal{C}$ and $PL(p, k)$ is the LDPL result, calculated with:
 
-$$
+```math 
 PL(p, k)[dB] = 10 \cdot n \cdot log_{10}\bigg(\frac{d(p,k)}{d_0}\bigg) + P_{r0}
-$$
+```
 
 In which $n$ defines the function's slope, $P_{r0}$ is the reference reception power, $d_0$ is the reference distance and $d(p, k)$ is the distance between LoRa ED $k \in \mathcal{K}$ and the LoRa GW positioned at point $p \in \mathcal{P}$.
-
-[comment]: # (Comentar a motivação para utilizar uma modelagem própria em vez de depender do NS3)
-
-<!-- ## Channel Modeling -->
-<!-- In wireless communication, the air channel which will propagate the message have a lot less guarantees of how it'll work in comparison with wired channels. Between a transmitter and a receptor there may be static objects (e.g. buildings) and dynamic objects (e.g. cars), which will absorb or reflect part of the signal. The Earth surface itself works as a reflector, possibly causing interference, alongside other transmitters that can be signaling simultaneously at the same frequency.
-
-The physical models to determine how a signal is degraded are complex. Because of this, we rely on an approximation called Log-Distance Path Loss (LDPL), a log function that aggregates deterministic and stochastic attenuation to provide the loss of a signal, in decibels, through a distance $d$. The LDPL model is described below.
-
-$$
-PL(d)[dB] = 10 \cdot n \cdot log_{10}(\frac{d}{d_0}) + PL_{d0} + \chi_\sigma
-$$ -->
-
-<!-- In which $n$ defines the function's slope, $PL_{d0}$ is the interception and $\chi_\sigma$ is a zero-mean Gaussian random variable representing shadow fading. The work we use [1] measures LoRa signal losses in an urban environment to define the values $n = 2.65$ and $PL_{d0} = 132.25$.
-
-For our model, $d$ is the distance between a LoRa-ED and a LoRa Gateway. Knowing the transmitted power, we can then calculate the received power and check if it is above the minimum specified for LoRa devices to be able to communicate. If positive, the device reaches the gateway, else it isn't reacheable. -->
 
 ## Evaluation
 
