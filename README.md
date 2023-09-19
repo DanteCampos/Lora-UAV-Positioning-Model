@@ -157,10 +157,10 @@ The first step is to build the version 3.36 of NS3.
 git clone https://github.com/nsnam/ns-3-dev-git ns-3
 cd ns-3
 git checkout ns-3.36
-mv -r ../contrib/* ./contrib/
-mv -r ../scratch/* ./scratch/
+mv ../contrib/* ./contrib/
+mv ../scratch/* ./scratch/
 
-./ns3 configure —enable-examples
+./ns3 configure --enable-examples
 ./ns3 build
 ```
 
