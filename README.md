@@ -191,6 +191,7 @@ Generate the files with LoRa-ED positions using the NS3 script, you can modify t
 mkdir data
 mkdir data/placement
 mkdir data/model
+mkdir data/model/output
 ./ns-3/build/scratch/ns3.36-devices-density-oriented-distrib-default --nDevices=30 --seed=1
 ```
 
