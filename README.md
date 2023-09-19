@@ -188,6 +188,8 @@ use the notebook [`equidistantPlacement.ipynb`](./equidistantPlacement.ipynb) to
 Generate the files with LoRa-ED positions using the NS3 script, you can modify the number of devices with the option `--nDevices=x` and the seed for the pseudo random distribution of the devices with the option `--seed=y`.
 
 ```bash
+mkdir data
+mkdir data/placement
 ./ns-3/build/scratch/ns3.36-devices-density-oriented-distrib-default --nDevices=30 --seed=1
 ```
 
