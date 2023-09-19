@@ -192,6 +192,7 @@ mkdir data
 mkdir data/placement
 mkdir data/model
 mkdir data/model/output
+mkdir data/results
 ./ns-3/build/scratch/ns3.36-devices-density-oriented-distrib-default --nDevices=30 --seed=1
 ```
 
