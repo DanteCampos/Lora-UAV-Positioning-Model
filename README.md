@@ -157,8 +157,10 @@ The first step is to build the version 3.36 of NS3.
 git clone https://github.com/nsnam/ns-3-dev-git ns-3
 cd ns-3
 git checkout ns-3.36
-mv ../contrib/* ./contrib/
-mv ../scratch/* ./scratch/
+cp ../contrib/* ./contrib/
+ln -s ~/lora_uav_experiment/scratch/optimal-distrib-experiment.cc ~/lora_uav_experiment/ns-3/scratch/optimal-distrib-experiment.cc
+ln -s ~/lora_uav_experiment/scratch/thesis-experiment.cc ~/lora_uav_experiment/ns-3/scratch/thesis-experiment.cc
+ln -s ~/lora_uav_experiment/scratch/devices-density-oriented-distrib.cc ~/lora_uav_experiment/ns-3/scratch/devices-density-oriented-distrib.cc
 
 ./ns3 configure --enable-examples
 ./ns3 build
@@ -188,11 +190,6 @@ use the notebook [`equidistantPlacement.ipynb`](./equidistantPlacement.ipynb) to
 Generate the files with LoRa-ED positions using the NS3 script, you can modify the number of devices with the option `--nDevices=x` and the seed for the pseudo random distribution of the devices with the option `--seed=y`.
 
 ```bash
-mkdir data
-mkdir data/placement
-mkdir data/model
-mkdir data/model/output
-mkdir data/results
 ./ns-3/build/scratch/ns3.36-devices-density-oriented-distrib-default --nDevices=30 --seed=1
 ```
 
@@ -208,7 +205,7 @@ To finalize, generate the files with slice association of the devices.
 To execute the optimization model, we need to pass in order the number of virtual positions (25), number of height levels (1), number of devices (30), device distribution seed (1) and QoS lower bound (0.9). 
 
 ```bash
-python model.py 25 1 30 1 0.9
+python biobj_model.py 25 1 30 1 0.9
 ```
 
 ### 3rd Step - Simulation
@@ -216,7 +213,7 @@ python model.py 25 1 30 1 0.9
 We are ready to execute the simulation with the solution obtained in the last step. 
 
 ```bash
-./ns-3/build/scratch/ns3.36-optimal-distrib-experiment-default --nDevices=30 --seed=1 --nGateways=25
+./ns-3/build/scratch/ns3.36-optimal-distrib-experiment-default --nDevices=30 --seed=1 --nGateways=25 --optFilePrefix=biobj
 ```
 
 The simulation output can be found in the directory [./data/results/](./data/results/).
