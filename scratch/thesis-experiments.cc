@@ -486,13 +486,11 @@ main (int argc, char *argv[])
   // Input file for generating input data for solver
   // Set the optimal parameters sf and tp and the ED slice_type
   // and print PLR1
-
-  // GetFeasibleSFTP (plrI_OutputFilename);
-  
+  GetFeasibleSFTP (plrI_OutputFilename);
   SetSlices ();
   // Print device x slice association
   PrintSKL (skl_OutputFilename);
-  // PrintDevicesData (devs_OutputFilename);
+  PrintDevicesData (devs_OutputFilename);
 
   NS_LOG_DEBUG ("Network Server configuration...");
 

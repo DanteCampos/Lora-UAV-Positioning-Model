@@ -29,10 +29,11 @@ MAX_RKC = 6835.94
 MIN_RKC = 183.11
 MAX_DELAY = PACKET_SIZE / MIN_RKC
 
+ALPHA = 100.0
+BETA = 1.0
+
 startPre = timer()
 
-
-# NS-3 "thesis-experimentation" pre-processed files 
 cwd = os.getcwd()
 path_output = cwd + "/data/model/output/"
 path_data = cwd + "/data/model/"
@@ -51,12 +52,6 @@ slice_association_file = path_data + "skl_" + \
                          str(args.nGat) + "x" + \
                          str(args.nPla) +"Gv_" + \
                          str(args.nDev) + "D.dat"
-
-# plr1_file = path_data + "plrI_" + \
-#                          str(args.seed) + "s_" + \
-#                          str(args.nGat) + "x" + \
-#                          str(args.nPla) +"Gv_" + \
-#                          str(args.nDev) + "D.dat"
 
 #DEBUG filenames
 if DEBUG:
@@ -200,24 +195,6 @@ if VERBOSE:
     print('------------------------------------------------------------------------------')
 
 # -----------------------------
-#      Processing PLR'
-# -----------------------------
-
-# plr1_df = pandas.read_csv(plr1_file, names=['device', 'gateway', 'sf', 'tp'],
-#                           sep=" ", index_col=False)
-
-# inverse_configurations = {value: key for key, value in configurations.items()}
-# plr1 = defaultdict(list)
-# for row in plr1_df.itertuples():
-#     config_id = inverse_configurations[Configuration(row.sf, row.tp)]
-#     plr1[(row.device, row.gateway)].append(config_id)
-
-# if VERBOSE:
-#     print('PLR\': ')
-#     print(plr1)
-#     print('------------------------------------------------------------------------------')
-
-# -----------------------------
 # ------ Building Model -------
 # -----------------------------
 
@@ -235,6 +212,8 @@ model.ceil2 = pyomo.Var(model.M, model.P, domain=pyomo.Binary)
 model.ceil3 = pyomo.Var(model.M, model.P, domain=pyomo.Binary)
 model.ceil4 = pyomo.Var(model.M, model.SF, domain=pyomo.Binary)
 
+model.y = pyomo.Var(domain=pyomo.Reals)
+
 # ------------------
 # Objective Function
 # ------------------
@@ -243,6 +222,8 @@ model.ceil1_lower_bound = pyomo.ConstraintList()
 model.ceil1_higher_bound = pyomo.ConstraintList()
 
 expression = 0
+
+
 for gateway in model.M:
     for position in model.P:
         ceil_expr = sum(
@@ -252,7 +233,9 @@ for gateway in model.M:
         )
         model.ceil1_lower_bound.add(model.ceil1[gateway, position] - ceil_expr >= 0.0)
         model.ceil1_higher_bound.add(model.ceil1[gateway, position] - ceil_expr <= 1.0 - (1 / len(model.K)))
-        expression += model.ceil1[gateway, position]
+        expression += ALPHA * model.ceil1[gateway, position]
+
+expression += BETA * model.y
 
 model.OBJECTIVE = pyomo.Objective(expr=expression, sense=pyomo.minimize)
 
@@ -275,6 +258,33 @@ model.OBJECTIVE = pyomo.Objective(expr=expression, sense=pyomo.minimize)
 #         model.ceil3_higher_bound.add(model.ceil3[gateway, position] - ceil_expr <= 1.0 - (1 / len(model.K)))
 #         expression += model.ceil3[gateway, position]
 #     model.single_gateway_per_position.add(expression <= 1.0)
+
+# ---------------------------------------
+# Maximum number of devices using same SF
+# ---------------------------------------
+
+sf_devices_expressions = {}
+model.maximum_devices_per_configuration = pyomo.ConstraintList()
+for pivot_position in model.P:
+    gw_p = [gateway_positions[pivot_position].x, gateway_positions[pivot_position].y, gateway_positions[pivot_position].z]
+    for sf in model.SF:
+        expression = sum(
+            model.x[gateway, position, device, config]
+            for gateway in model.M
+            for config in model.C
+            for device in model.K
+            for position in model.P
+            if configurations[config].sf == sf and
+            (configurations[config].tp - referencePrx - 10 * attenuationExponent * math.log10(
+                math.sqrt((gw_p[0] - end_device_positions[device].x)**2 + 
+                          (gw_p[1] - end_device_positions[device].y)**2 + 
+                          (gw_p[2] - end_device_positions[device].z)**2)
+                /referenceDistance)) >= sensitivity[configurations[config].sf]
+        )
+
+        sf_devices_expressions[(sf, pivot_position)] = expression
+        model.maximum_devices_per_configuration.add(model.y >= expression)
+
 
 # -----------------------------------------------------
 # Single Gateway, Position and Configuration per Device
@@ -384,7 +394,7 @@ for gateway in model.M:
                 pathLoss = 0.0
                 if distance > referenceDistance:
                     pathLoss = 10 * attenuationExponent * math.log10(distance/referenceDistance)
-
+                    
                 model.loss_constraint.add(model.x[gateway, position, device, config] * 
                                           (configurations[config].tp - referencePrx - pathLoss) 
                                           >= sensitivity[configurations[config].sf])
@@ -504,31 +514,31 @@ for key in endDevicePositions.keys():
                            + str(position.y) + "," + str(position.z) + "\n")
 
 solutions = str(str(args.seed) + "," + str(args.nGat) + "," + str(args.nDev) + "," + str(result.solver.time) + ","
-                + str(pyomo.value(model.OBJECTIVE)) + ",-1.0," 
+                + str(pyomo.value(model.OBJECTIVE)) + "," + str(pyomo.value(model.y)) + "," 
                 + str(len(uniqueGatewayPositions)) + "," + str(devicesPerSF[7]) + "," + str(devicesPerSF[8]) + "," 
                 + str(devicesPerSF[9]) + "," + str(devicesPerSF[10]) + "," + str(devicesPerSF[11]) + "," + str(devicesPerSF[12]) + "\n")
 
-fileGwPlacement =  str(path_output + "opt_Placement_" + str(args.seed) + "s_" 
+fileGwPlacement =  str(path_output + "alt_biobj_Placement_" + str(args.seed) + "s_" 
                        + str(args.nGat) + "x" + str(args.nPla) +"Gv_" + str(args.nDev) + "D.dat")                   
 with open(fileGwPlacement, "w+") as outfile:
     outfile.write(gatewaysPositions)
 
-fileDevicePlacement =  str(path_output + "opt_DevicePlacement_" + str(args.seed) + "s_" 
+fileDevicePlacement =  str(path_output + "alt_biobj_DevicePlacement_" + str(args.seed) + "s_" 
                            + str(args.nGat) + "x" + str(args.nPla) +"Gv_" + str(args.nDev) + "D.dat")                   
 with open(fileDevicePlacement, "w+") as outfile:
     outfile.write(devicePositions)
 
-fileCfgPlacement =  str(path_output + "opt_DevicesConfigurations_" + str(args.seed) + "s_" 
+fileCfgPlacement =  str(path_output + "alt_biobj_DevicesConfigurations_" + str(args.seed) + "s_" 
                         + str(args.nGat) + "x" + str(args.nPla) +"Gv_" + str(args.nDev) + "D.dat")
 with open(fileCfgPlacement, "w+") as outfile:
     outfile.write(devicesConfigurations)
 
-fileQoS = str(path_output + "opt_QoSResults_" + str(args.seed) + "s_" 
+fileQoS = str(path_output + "alt_biobj_QoSResults_" + str(args.seed) + "s_" 
               + str(args.nGat) + "x" + str(args.nPla) +"Gv_" + str(args.nDev) + "D.dat")
 with open(fileQoS, "w+") as outfile:
     outfile.write(qosResults)
 
-fileSolutions =  str(path_output + "opt_solutions.dat")  
+fileSolutions =  str(path_output + "alt_biobj_solutions.dat")  
 if os.path.isfile(fileSolutions):
     with open(fileSolutions, "a+") as outfile:
         outfile.write(solutions)
@@ -536,6 +546,7 @@ else:
     with open(fileSolutions, "w+") as outfile:
         outfile.write("seed,numVirtualPositions,numDevices,solveTime,objective,maxConfigurations,numUAVs,sf7,sf8,sf9,sf10,sf11,sf12\n")
         outfile.write(solutions)
+
 
 #DEBUG Output filenames
 if DEBUG:
@@ -546,6 +557,7 @@ if DEBUG:
 endPos = timer()
 
 print("Obj: " + str(pyomo.value(model.OBJECTIVE)))
+print("y: " + str(pyomo.value(model.y)))
 
 print('Pre processing elapsed time:' + str(startSolv - startPre) + 'sec')
 print('Processing elapsed time:' + str(startPos - startSolv) + 'sec')

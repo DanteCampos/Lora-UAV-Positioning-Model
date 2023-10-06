@@ -22,7 +22,13 @@
 #include "ns3/propagation-module.h"
 #include <algorithm>
 #include <ctime>
-#include <iomanip>
+#include <unistd.h>
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <vector>
+#include <string>
+
 
 using namespace ns3;
 using namespace lorawan;
@@ -239,6 +245,8 @@ GatewaysPlacement (std::string filename)
   const char *c = filename.c_str ();
   // Get Devices position from File
   std::ifstream in_File (c);
+  std::string line{};
+  std::getline(in_File, line);
   int nG = 0;
   if (!in_File)
     {
@@ -246,11 +254,23 @@ GatewaysPlacement (std::string filename)
     }
   else
     {
-      while (in_File >> gwX >> gwY >> gwZ)
-        {
-          allocatorGW->Add (Vector (gwX, gwY, gwZ));
-          nG++;
+      while(std::getline(in_File, line)) {
+        std::istringstream iss(line);
+
+        std::string substring{};
+        std::vector<std::string> substrings{};
+
+        while(std::getline(iss, substring, ',')) {
+          substrings.push_back(substring);
         }
+
+        gwX = std::stod(substrings[1]);
+        gwY = std::stod(substrings[2]);
+        gwZ = std::stod(substrings[3]);
+
+        allocatorGW->Add (Vector (gwX, gwY, gwZ));
+        nG++;
+      }
       in_File.close ();
     }
   gateways.Create (nG);
@@ -266,21 +286,37 @@ PrintEndDevicesParameters (std::string filename)
   const char *c = filename.c_str ();
   std::ofstream spreadingFactorFile;
   spreadingFactorFile.open (c);
+  spreadingFactorFile << "device,sf,tp,datarate,x,y,z" << std::endl;
   for (NodeContainer::Iterator ed = endDevices.Begin (); ed != endDevices.End (); ++ed)
     {
       Ptr<Node> oDevice = *ed;
       Ptr<NetDevice> netDevice = oDevice->GetDevice (0);
       Ptr<LoraNetDevice> loraNetDevice = netDevice->GetObject<LoraNetDevice> ();
       NS_ASSERT (loraNetDevice != 0);
+      Ptr<MobilityModel> mobility = oDevice->GetObject<MobilityModel> ();
+      Vector position = mobility->GetPosition ();
       Ptr<EndDeviceLorawanMac> mac = loraNetDevice->GetMac ()->GetObject<EndDeviceLorawanMac> ();
       int sf = mac->GetSfFromDataRate (mac->GetDataRate ());
       int txPower = mac->GetTransmissionPower ();
       //      spreadingFactorFile << oGateway->GetId () << " " << oDevice->GetId () << " " << distanceFromGW << " " << sf << " "
       //                              << txPower <<  std::endl;
-      spreadingFactorFile << oDevice->GetId () << " " << sf << " " << txPower << " "
-                          << (sf * (125000 / (pow (2, sf))) * (4 / 5.0)) << std::endl;
+
+      spreadingFactorFile << oDevice->GetId () << "," << sf << "," << txPower << ","
+                          << (sf * (125000 / (pow (2, sf))) * (4 / 5.0)) << "," << position.x << "," 
+                          << position.y << "," << position.z << std::endl;
     }
   spreadingFactorFile.close ();
+}
+
+std::string space2comma(std::string text)
+{
+    for(std::string::iterator it = text.begin(); it != text.end(); ++it)
+    {
+        if(*it == ' ')
+            *it = ',';
+    }
+    text.pop_back();
+    return text;
 }
 
 int
@@ -295,6 +331,7 @@ main (int argc, char *argv[])
   bool up = false;
   int packetSize = 41;
   std::string gwPositionFile = "";
+  std::string optFilePrefix = "";
 
   CommandLine cmd;
   cmd.AddValue ("nDevices", "Number of end devices to include in the simulation", nDevices);
@@ -305,6 +342,7 @@ main (int argc, char *argv[])
   cmd.AddValue ("seed", "Independent replications seed", seed);
   cmd.AddValue ("up", "Spread Factor UP", up);
   cmd.AddValue ("gwPositionFile", "File with gateway positions", gwPositionFile);
+  cmd.AddValue ("optFilePrefix", "File with gateway positions", optFilePrefix);
   cmd.Parse (argc, argv);
 
   RngSeedManager::SetSeed (seed + 100);
@@ -381,7 +419,8 @@ main (int argc, char *argv[])
 
   NS_LOG_INFO ("Creating end devices...");
   // Create a set of nodes
-  EndDevicesPlacement ("/home/drone/workspace/data/placement/endDevices_LNM_Placement_" +
+  std::string cwd = get_current_dir_name();
+  EndDevicesPlacement (cwd + "/data/placement/endDevices_LNM_Placement_" +
                        std::to_string (seed) + "s+" + std::to_string (nDevices) + "d.dat");
 
   // Create the LoraNetDevices of the end devices
@@ -400,21 +439,35 @@ main (int argc, char *argv[])
   // Configuring devices
   Ptr<LoraPhy> phyED;
   Ptr<ClassAEndDeviceLorawanMac> macED;
-  std::string fileConfig = "/home/drone/workspace/data/model/output/optimizedDevicesConfigurations_" +
+  std::string fileConfig = cwd + "/data/model/output/" + optFilePrefix + "_DevicesConfigurations_" +
                            std::to_string (seed) + "s_" + std::to_string (nGateways) + "x1Gv_" +
                            std::to_string (nDevices) + "D.dat";
   const char *cfg = fileConfig.c_str ();
-  std::ifstream in_File (cfg);
   double id, sf, tp;
-  while (in_File >> id >> sf >> tp)
-    {
-      Ptr<Node> node = endDevices.Get (id);
-      Ptr<LoraNetDevice> loraNetDevice = node->GetDevice (0)->GetObject<LoraNetDevice> ();
-      Ptr<LoraPhy> phy = loraNetDevice->GetPhy ();
-      macED = loraNetDevice->GetMac ()->GetObject<ClassAEndDeviceLorawanMac> ();
-      macED->SetDataRate (SFToDR (sf));
-      macED->SetTransmissionPower (tp);
+  std::ifstream in_File (cfg);
+  std::string line{};
+  std::getline(in_File, line);
+  while(std::getline(in_File, line)) {
+    std::istringstream iss(line);
+
+    std::string substring{};
+    std::vector<std::string> substrings{};
+
+    while(std::getline(iss, substring, ',')) {
+      substrings.push_back(substring);
     }
+
+    id = std::stod(substrings[0]);
+    sf = std::stod(substrings[1]);
+    tp = std::stod(substrings[2]);
+
+    Ptr<Node> node = endDevices.Get (id);
+    Ptr<LoraNetDevice> loraNetDevice = node->GetDevice (0)->GetObject<LoraNetDevice> ();
+    Ptr<LoraPhy> phy = loraNetDevice->GetPhy ();
+    macED = loraNetDevice->GetMac ()->GetObject<ClassAEndDeviceLorawanMac> ();
+    macED->SetDataRate (SFToDR (sf));
+    macED->SetTransmissionPower (tp);
+  }
   in_File.close ();
 
   // Connect trace sources
@@ -432,7 +485,7 @@ main (int argc, char *argv[])
 
   NS_LOG_INFO ("Creating gateways...");
 
-  std::string filename = "/home/drone/workspace/data/model/output/optimizedPlacement_" +
+  std::string filename = cwd + "/data/model/output/" + optFilePrefix + "_Placement_" +
                          std::to_string (seed) + "s_" + std::to_string (nGateways) + "x1Gv_" +
                          std::to_string (nDevices) + "D.dat";
 
@@ -509,15 +562,15 @@ main (int argc, char *argv[])
   Simulator::Run ();
   NS_LOG_INFO ("Computing performance metrics...");
 
-  std::string path_output = "/home/drone/workspace/data/results/";
+  std::string path_output = cwd + "/data/results/";
   if (printRates)
     {
 
       /**
        * Print COMM PARAMETERS
        * **/
-      std::string par_filename = path_output + "transmissionParameters_" +
-                                 std::to_string (seed) + "_" + std::to_string (nGat) + "x" +
+      std::string par_filename = path_output + optFilePrefix + "_EDParameters_" +
+                                 std::to_string (seed) + "_" + std::to_string (nGateways) + "x" +
                                  std::to_string (nDevices) + ".dat";
       PrintEndDevicesParameters (par_filename);
 
@@ -525,19 +578,19 @@ main (int argc, char *argv[])
          * Print PACKETS
          * **/
 
-      std::string packs_filename = path_output + "transmissionPackets_" +
-                                   std::to_string (seed) + "_" + std::to_string (nGat) + "x" +
+      std::string packs_filename = path_output + optFilePrefix + "_transmissionPackets_" +
+                                   std::to_string (seed) + "_" + std::to_string (nGateways) + "x" +
                                    std::to_string (nDevices) + ".dat";
       const char *cPK = packs_filename.c_str ();
       std::ofstream filePKT;
       filePKT.open (cPK, std::ios::out);
+      filePKT << "device,gateway,delay" << std::endl;
       for (std::map<Ptr<Packet const>, myPacketStatus>::iterator p = packetTracker.begin ();
            p != packetTracker.end (); ++p)
         {
-          filePKT << (*p).second.senderId << " " << (*p).second.receiverId << " "
-                  << (*p).second.sentTime.GetSeconds () << " "
-                  << (*p).second.receivedTime.GetSeconds () << " "
+          filePKT << (*p).second.senderId << "," << (*p).second.receiverId << ","
                   << (*p).second.receivedTime.GetSeconds () - (*p).second.sentTime.GetSeconds ()
+                  << (*p).second.outcomeNumber
                   << std::endl;
         }
       filePKT.close ();
@@ -554,19 +607,21 @@ main (int argc, char *argv[])
        * Print GLOBAL PACKET DELIVERY
        * **/
 
-      std::string phyPerformanceFile = path_output + "transmissionData_" +
-                                       std::to_string (nGat) + "x" + std::to_string (nDevices) +
-                                       ".dat";
+      std::string phyPerformanceFile = path_output + optFilePrefix + "_PacketDelivery_" + 
+                                       std::to_string (nGateways) + 
+                                       "x" + std::to_string (nDevices) + ".dat";
       const char *c = phyPerformanceFile.c_str ();
       std::ofstream file;
-      file.open (c, std::ios::app);
-      if (!file)
-        {
-          file.open (c, std::ios::out);
-        }
+      if (access(c, F_OK) == -1) {
+        file.open (c, std::ios::out);
+        file << "seed,sent,received" << std::endl;
+      }
+      else {
+        file.open (c, std::ios::app);
+      }
       // Print total of packets [seed sent received]
-      file << seed << " "
-           << tracker.CountMacPacketsGlobally (Seconds (0), appStopTime + Minutes (10))
+      file << seed << ","
+           << space2comma(tracker.CountMacPacketsGlobally (Seconds (0), appStopTime + Minutes (10)))
            << std::endl;
       file.close ();
 
@@ -574,22 +629,23 @@ main (int argc, char *argv[])
        * Print PACKET DELIVERY PER GATEWAY
        * **/
 
-      std::string phyPerfPerGatewayFile = path_output + "transmissionDataPerGateway_" +
-                                          std::to_string (seed) + "_" + std::to_string (nGat) +
+      std::string phyPerfPerGatewayFile = path_output + optFilePrefix + "_PacketPerGateway_" +
+                                          std::to_string (seed) + "_" + std::to_string (nGateways) +
                                           "x" + std::to_string (nDevices) + ".dat";
 
       const char *cG = phyPerfPerGatewayFile.c_str ();
       std::ofstream fileG;
       fileG.open (cG, std::ios::out);
-      fileG << "gwID totPacketsSent receivedPackets interferedPackets noMoreGwPackets underSensitivityPackets lostBecauseTxPackets" 
+      fileG << "gwID,x,y,z,totPacketsSent,receivedPackets,interferedPackets,noMoreGwPackets,underSensitivityPackets,lostBecauseTxPackets" 
             << std::endl;
       for (NodeContainer::Iterator j = gateways.Begin (); j != gateways.End (); ++j)
         {
           Ptr<Node> object = *j;
+          Ptr<MobilityModel> mobility = object->GetObject<MobilityModel> ();
+          Vector position = mobility->GetPosition ();
           // gateway_id totPacketsSent receivedPackets interferedPackets noMoreGwPackets underSensitivityPackets lostBecauseTxPackets
-          fileG << object->GetId () << " "
-                << tracker.PrintPhyPacketsPerGw (Seconds (0), appStopTime + Minutes (10),
-                                                 object->GetId ())
+          fileG << object->GetId () << "," << position.x << "," << position.y << "," << position.z << ","
+                << space2comma(tracker.PrintPhyPacketsPerGw(Seconds (0), appStopTime + Minutes(10), object->GetId()))
                 << std::endl;
         }
       fileG.close ();
