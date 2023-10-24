@@ -40,6 +40,8 @@ path_data = cwd + "/data/model/"
 gateway_data = cwd + "/data/placement/"
 devices_data = cwd + "/data/placement/"
 
+prefix = "beta_biobj_gap"
+
 end_device_position_file = devices_data + "endDevices_LNM_Placement_" + str(args.seed) + "s+" + str(args.nDev) + "d.dat"
 #"endDevices_LNM_Placement_1s+10d.dat"
 if args.nPla == '1':
@@ -507,37 +509,37 @@ for key in endDevicePositions.keys():
                            + str(position.y) + "," + str(position.z) + "\n")
 
 solutions = str(str(args.seed) + "," + str(args.nGat) + "," + str(args.nDev) + "," + str(result.solver.time) + ","
-                + str(pyomo.value(model.OBJECTIVE)) + "," + str(pyomo.value(model.y)) + "," 
+                + str(pyomo.value(model.OBJECTIVE)) + "," + str(result.solver.gap) + "," + str(pyomo.value(model.y)) + "," 
                 + str(len(uniqueGatewayPositions)) + "," + str(devicesPerSF[7]) + "," + str(devicesPerSF[8]) + "," 
                 + str(devicesPerSF[9]) + "," + str(devicesPerSF[10]) + "," + str(devicesPerSF[11]) + "," + str(devicesPerSF[12]) + "\n")
 
-fileGwPlacement =  str(path_output + "beta_biobj_Placement_" + str(args.seed) + "s_" 
+fileGwPlacement =  str(path_output + prefix + "_Placement_" + str(args.seed) + "s_" 
                        + str(args.nGat) + "x" + str(args.nPla) +"Gv_" + str(args.nDev) + "D.dat")                   
 with open(fileGwPlacement, "w+") as outfile:
     outfile.write(gatewaysPositions)
 
-fileDevicePlacement =  str(path_output + "beta_biobj_DevicePlacement_" + str(args.seed) + "s_" 
+fileDevicePlacement =  str(path_output + prefix + "_DevicePlacement_" + str(args.seed) + "s_" 
                            + str(args.nGat) + "x" + str(args.nPla) +"Gv_" + str(args.nDev) + "D.dat")                   
 with open(fileDevicePlacement, "w+") as outfile:
     outfile.write(devicePositions)
 
-fileCfgPlacement =  str(path_output + "beta_biobj_DevicesConfigurations_" + str(args.seed) + "s_" 
+fileCfgPlacement =  str(path_output + prefix + "_DevicesConfigurations_" + str(args.seed) + "s_" 
                         + str(args.nGat) + "x" + str(args.nPla) +"Gv_" + str(args.nDev) + "D.dat")
 with open(fileCfgPlacement, "w+") as outfile:
     outfile.write(devicesConfigurations)
 
-fileQoS = str(path_output + "beta_biobj_QoSResults_" + str(args.seed) + "s_" 
+fileQoS = str(path_output + prefix + "_QoSResults_" + str(args.seed) + "s_" 
               + str(args.nGat) + "x" + str(args.nPla) +"Gv_" + str(args.nDev) + "D.dat")
 with open(fileQoS, "w+") as outfile:
     outfile.write(qosResults)
 
-fileSolutions =  str(path_output + "beta_biobj_solutions.dat")  
+fileSolutions =  str(path_output + prefix + "_solutions.dat")  
 if os.path.isfile(fileSolutions):
     with open(fileSolutions, "a+") as outfile:
         outfile.write(solutions)
 else:
     with open(fileSolutions, "w+") as outfile:
-        outfile.write("seed,numVirtualPositions,numDevices,solveTime,objective,maxConfigurations,numUAVs,sf7,sf8,sf9,sf10,sf11,sf12\n")
+        outfile.write("seed,numVirtualPositions,numDevices,solveTime,objective,gap,maxConfigurations,numUAVs,sf7,sf8,sf9,sf10,sf11,sf12\n")
         outfile.write(solutions)
 
 #DEBUG Output filenames
